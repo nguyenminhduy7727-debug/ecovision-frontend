@@ -1,93 +1,93 @@
-import torch
-from fastapi import FastAPI, UploadFile, File
+import os
+import json
+import io
+from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from ultralytics import YOLO
-import cv2
-import numpy as np
-import base64
+import google.generativeai as genai
+from PIL import Image
+from dotenv import load_dotenv
+
+# =============================================================
+# 1. NẠP FILE .ENV VÀ CẤU HÌNH BIẾN MÔI TRƯỜNG
+# =============================================================
+load_dotenv()
 
 app = FastAPI()
 
-# Cấu hình CORS mở cổng kết nối cho React
+# =============================================================
+# 2. CẤU HÌNH CORS (BẮT BUỘC ĐỂ WEB REACT KẾT NỐI ĐƯỢC)
+# =============================================================
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"], # Cho phép tất cả các nguồn kết nối để tránh lỗi chặn cổng
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# 🧠 TẢI MÔ HÌNH YOLOv8 NANO (Siêu nhẹ, chạy cực nhanh trên CPU mọi laptop)
-print("Đang khởi động bộ não YOLOv8...")
-model = YOLO("yolov8n.pt") 
-print("YOLOv8 ĐÃ SẴN SÀNG!")
+# =============================================================
+# 3. KIỂM TRA VÀ KẾT NỐI API KEY GEMINI
+# =============================================================
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-@app.get("/")
-def kiem_tra():
-    return {"trang_thai": "YOLO Server đang chạy tốt"}
+if not GEMINI_API_KEY:
+    print("❌ LỖI NGHIÊM TRỌNG: Chưa tìm thấy GEMINI_API_KEY trong file .env!")
+    print("👉 Hãy chắc chắn bạn đã tạo file tên là '.env' nằm cùng thư mục với file main.py này.")
+else:
+    genai.configure(api_key=GEMINI_API_KEY)
+    print("✅ Đã kết nối cấu hình Gemini API Key thành công!")
 
-@app.post("/api/phan-loai")
+# =============================================================
+# 4. API PHÂN LOẠI RÁC (Đường dẫn có dấu / ở cuối)
+# =============================================================
+@app.post("/api/phan-loai/")
 async def phan_loai_rac(file: UploadFile = File(...)):
-    # 1. Đọc file ảnh từ React gửi lên và chuyển thành ma trận ảnh OpenCV
-    contents = await file.read()
-    nparr = np.frombuffer(contents, np.uint8)
-    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-    
-    # 2. Cho YOLOv8 quét bức ảnh
-    results = model(img)
-    
-    loai_rac_chinh = "Chưa xác định"
-    loai_thung_rac = "🗑️ Hãy bỏ vào THÙNG RÁC CHUNG!"
-    do_tu_tin_chinh = "0%"
-    
-    # 3. Duyệt qua tất cả các vật thể mà YOLO tìm thấy trong hình để vẽ khung
-    boxes = results[0].boxes
-    for box in boxes:
-        # Lấy tọa độ khung vuông [xmin, ymin, xmax, ymax]
-        xyxy = box.xyxy[0].tolist()
-        x1, y1, x2, y2 = int(xyxy[0]), int(xyxy[1]), int(xyxy[2]), int(xyxy[3])
+    try:
+        # Đọc dữ liệu ảnh truyền lên từ React
+        contents = await file.read()
+        image = Image.open(io.BytesIO(contents))
         
-        # Lấy độ tự tin (%) và tên vật thể bằng tiếng Anh (ví dụ: bottle, banana...)
-        conf = float(box.conf[0])
-        cls = int(box.cls[0])
-        ten_tieng_anh = model.names[cls]
+        # Gọi mô hình Gemini 1.5 Pro (Bản xử lý hình ảnh và suy luận tốt nhất hiện tại)
+        model = genai.GenerativeModel('gemini-3-flash-preview')
         
-        # --- LOGIC PHÂN LOẠI RÁC THEO TIÊU CHUẨN ---
-        # Nhóm Tái Chế
-        if ten_tieng_anh in ["bottle", "can", "cup", "box", "paper", "cardboard", "bottle-cap"]:
-            loai_rac_chinh = f"Rác Tái Chế ({ten_tieng_anh})"
-            loai_thung_rac = "♻️ Hãy làm sạch và bỏ vào THÙNG MÀU TRẮNG!"
-            mau_khung = (255, 0, 0) # Màu Xanh Dương (Bên OpenCV là BGR)
-            
-        # Nhóm Hữu Cơ
-        elif ten_tieng_anh in ["apple", "banana", "orange", "broccoli", "carrot", "sandwich", "cake", "food"]:
-            loai_rac_chinh = f"Rác Hữu Cơ ({ten_tieng_anh})"
-            loai_thung_rac = "🌱 Thức ăn thừa/Rau củ. Hãy bỏ vào THÙNG MÀU XANH LÁ!"
-            mau_khung = (0, 255, 0) # Màu Xanh Lá
-            
-        # Các vật thể khác mặc định là rác vô cơ
-        else:
-            loai_rac_chinh = f"Rác Vô Cơ / Khác ({ten_tieng_anh})"
-            loai_thung_rac = "🗑️ Không thể tái chế. Hãy bỏ vào THÙNG MÀU CAM / XÁM!"
-            mau_khung = (0, 0, 255) # Màu Đỏ
-            
-        do_tu_tin_chinh = f"{conf * 100:.1f}%"
-        
-        # 4. Vẽ khung hình chữ nhật lên vật thể
-        cv2.rectangle(img, (x1, y1), (x2, y2), mau_khung, 3)
-        
-        # Vẽ nhãn chữ đè lên đầu khung vuông
-        label = f"{ten_tieng_anh} {do_tu_tin_chinh}"
-        cv2.putText(img, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, mau_khung, 2)
+        # Câu lệnh Prompt điều khiển bộ não AI
+        prompt = """
+        Bạn là một chuyên gia phân loại rác thải thông minh và bảo vệ môi trường tại Việt Nam.
+        Hãy phân tích vật thể chính trong ảnh, suy luận kích thước thật ngoài đời của nó (bất chấp việc chụp gần hay xa) và phân loại vào đúng 1 trong 5 nhóm rác sau:
 
-    # 5. Mã hóa bức ảnh đã vẽ khung thành chuỗi Base64 để gửi về giao diện Web
-    _, encoded_img = cv2.imencode('.jpg', img)
-    base64_image = base64.b64encode(encoded_img).decode('utf-8')
-    
-    # 6. Trả kết quả về cho React
-    return {
-        "type": loai_rac_chinh,
-        "action": loai_thung_rac,
-        "confidence": do_tu_tin_chinh,
-        "annotated_image": f"data:image/jpeg;base64,{base64_image}" # Đường dẫn ảnh chứa khung vuông
-    }
+        1. "Không phải rác": Con người, chim chóc, chó, mèo, cây cảnh đang trồng hoặc các sinh vật sống khác.
+        2. "Rác Tái Chế": Chai nhựa, lon nước, hộp giấy, thùng carton, giấy báo, vỏ lon bia/nước ngọt...
+        3. "Rác Hữu Cơ": Thức ăn thừa, rau củ quả hư, bã trà, bã cà phê, hoa lá héo rơi rụng...
+        4. "Rác Cồng Kềnh": Các vật thể nội thất kích thước lớn (ghế sofa, nệm cũ, tủ quần áo, bồn cầu, giường) hoặc đồ điện tử gia dụng lớn (tivi, tủ lạnh, máy giặt). 
+           LƯU Ý ĐẶC BIỆT: Nếu vật thể nhỏ như bàn phím, chuột máy tính, điện thoại, điều khiển remote... dù chụp tràn màn hình thì ngoài đời kích thước thật của nó vẫn nhỏ -> KHÔNG ĐƯỢC xếp vào cồng kềnh, hãy xếp vào nhóm Rác Vô Cơ.
+        5. "Rác Vô Cơ / Khác": Túi nilon, khẩu trang dùng một lần, hộp xốp, các mảnh vỡ sành sứ, đồ điện tử nhỏ lẻ, găng tay cao su...
+
+        YÊU CẦU BẮT BUỘC: Chỉ trả về duy nhất một chuỗi định dạng JSON hợp lệ, KHÔNG bọc trong thẻ markdown ```json, KHÔNG viết thêm bất kỳ lời chào hay giải thích nào bên ngoài. Cấu trúc JSON phải chính xác 100% như sau:
+        {
+          "loai_rac_chinh": "Tên Nhóm Rác (Tên vật thể tiếng Việt cụ thể)",
+          "do_tu_tin_chinh": "Ước lượng độ chính xác từ 85% đến 100%, ví dụ: 95%"
+        }
+        """
+        
+        # Gửi dữ liệu lên mây Google để xử lý
+        response = model.generate_content([prompt, image])
+        
+        # Làm sạch chuỗi dữ liệu trả về (Đề phòng trường hợp AI tự ý chèn ký tự ```json)
+        text_data = response.text.strip()
+        if text_data.startswith("```json"):
+            text_data = text_data[7:]
+        if text_data.endswith("```"):
+            text_data = text_data[:-3]
+        text_data = text_data.strip()
+        
+        # Chuyển đổi chuỗi văn bản thành đối tượng JSON chuẩn và bắn ngược về cho React
+        ket_qua_json = json.loads(text_data)
+        return ket_qua_json
+
+    except Exception as e:
+        print(f"❌ Lỗi xử lý hệ thống: {e}")
+        # Cơ chế dự phòng (Fallback) nếu có lỗi xảy ra để trang web React của bạn không bị đứng hình hoặc lỗi giao diện
+        return {
+            "loai_rac_chinh": "Rác Vô Cơ / Khác (Hệ thống AI đang bận)",
+            "do_tu_tin_chinh": "0%"
+        }
