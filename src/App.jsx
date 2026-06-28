@@ -63,7 +63,7 @@ function App() {
       formData.append("file", file);
 
       try {
-        const response = await fetch("https://ecovision-api-ki25.onrender.com//api/phan-loai/", {
+        const response = await fetch("https://ecovision-api-ki25.onrender.com/api/phan-loai/", {
           method: "POST",
           body: formData,
         });
