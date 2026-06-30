@@ -46,7 +46,7 @@ async def phan_loai_rac(file: UploadFile = File(...)):
         # Đọc dữ liệu ảnh truyền lên từ React
         contents = await file.read()
         image = Image.open(io.BytesIO(contents))
-        
+        image.thumbnail((800, 800))
         # Gọi mô hình Gemini 1.5 Pro (Bản xử lý hình ảnh và suy luận tốt nhất hiện tại)
         model = genai.GenerativeModel('gemini-3-flash-preview')
         
@@ -73,7 +73,7 @@ async def phan_loai_rac(file: UploadFile = File(...)):
         response = model.generate_content([prompt, image])
         
         # Làm sạch chuỗi dữ liệu trả về (Đề phòng trường hợp AI tự ý chèn ký tự ```json)
-        text_data = response.text.strip()
+        text_data = response.t  ext.strip()
         if text_data.startswith("```json"):
             text_data = text_data[7:]
         if text_data.endswith("```"):

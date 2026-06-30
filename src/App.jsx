@@ -13,41 +13,51 @@ function App() {
 
     if (loaiRac.includes("Không phải rác")) {
       return { 
-        title: "Sinh Vật Sống", taiChe: "Không áp dụng", 
-        goiY: "Không quét con người/động vật!", 
-        luuY: "Hãy cất điện thoại đi và vuốt ve chúng nhé 🐈", 
-        mau: "#ffb300", icon: "⚠️" 
+        title: "Không Phải Rác",
+        taiChe: "N/A",
+        goiY: "Không áp dụng",
+        luuY: "Vui lòng chụp đúng vật thể là rác thải cần phân loại.",
+        mau: "#607d8b", // Xám mờ
+        icon: "❓"
       };
     }
     if (loaiRac.includes("Tái Chế")) {
       return { 
-        title: "Rác Tái Chế", taiChe: "♻️ Khả năng tái chế: Cao", 
-        goiY: "Thùng rác MÀU TRẮNG", 
-        luuY: "Nhớ đổ sạch nước, rửa sơ và làm xẹp trước khi vứt nhé!", 
-        mau: "#1976d2", icon: "📦" 
+        title: "Rác Tái Chế",
+        taiChe: "♻️ Có thể tái chế",
+        goiY: "Bỏ vào thùng rác MÀU VÀNG / CAM",
+        luuY: "Gồm: Giấy báo, chai nhựa, vỏ lon... Nhớ đổ sạch nước và súc rửa sơ trước khi vứt!",
+        mau: "#ff9800", // Cam
+        icon: "🥤"
       };
     }
     if (loaiRac.includes("Hữu Cơ")) {
-      return { 
-        title: "Rác Hữu Cơ", taiChe: "🌱 Phân hủy sinh học", 
-        goiY: "Thùng rác MÀU XANH LÁ", 
-        luuY: "Tuyệt đối không bỏ kèm túi nilon vào thùng hữu cơ!", 
-        mau: "#388e3c", icon: "🍎" 
+      return {
+        title: "Rác Hữu Cơ",
+        taiChe: "✅ Có thể ủ phân Compost",
+        goiY: "Bỏ vào thùng rác MÀU XANH LÁ",
+        luuY: "Gồm: Rau củ quả, thức ăn thừa, xương cá, lá cây... Không bỏ lẫn túi nilon vào sếp nhé!",
+        mau: "#4caf50", // Xanh lá
+        icon: "🍌"
       };
     }
     if (loaiRac.includes("Cồng Kềnh")) {
       return { 
         title: "Rác Cồng Kềnh", taiChe: "🔄 Tùy thuộc vào vật liệu", 
-        goiY: "Điểm thu gom rác phường/xã", 
-        luuY: "Có thể gọi công ty môi trường đô thị hỗ trợ xe tải thu gom.", 
-        mau: "#9c27b0", icon: "🛋️" 
+        taiChe: "🚛 Thu gom theo lịch địa phương",
+        goiY: "Đường số 7, KCN Vĩnh Lộc (gần số 362 Đường số 7, Phường Bình Tân).",
+        luuY: "⏰ Thời gian: 8g10 - 11g30 Chủ Nhật hàng tuần. ⚠️ Yêu cầu: Nhớ mang theo CCCD/giấy tờ cư trú hoặc đăng ký trước với Trưởng Khu phố sếp nhé!", 
+        mau: "#9c27b0",
+        icon: "🛋️" 
       };
     }
     return { 
-      title: "Rác Vô Cơ / Khác", taiChe: "❌ Không thể tái chế", 
-      goiY: "Thùng rác MÀU CAM / XÁM", 
-      luuY: "Gói kín cẩn thận nếu có chứa nước hoặc bốc mùi hôi.", 
-      mau: "#d32f2f", icon: "🗑️" 
+     title: "Rác Thải Khác",
+      taiChe: "❌ Không thể tái chế",
+      goiY: "Bỏ vào thùng rác MÀU ĐỎ",
+      luuY: "Gồm: Mảnh vỡ, tivi hỏng, tàn thuốc... ⚠️ LƯU Ý: Phạt tiền từ 2Tr - 200Tr VNĐ đối với hành vi vứt rác sai quy định (Theo NĐ 45/2022/NĐ-CP). Hotline cung ứng dịch vụ công: 026.6685.8616",
+      mau: "#f44336", // Đỏ cảnh báo
+      icon: "🗑️"
     };
   };
 
